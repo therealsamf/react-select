@@ -1285,7 +1285,39 @@ var Select$1 = function (_React$Component) {
 				this.hasScrolledToOption = false;
 			}
 			var updatedValue = this.props.onSelectResetsInput ? '' : this.state.inputValue;
-			if (this.props.multi) {
+
+			if (this.props.multi && this.props.deepFilter) {
+				if (this.state.currentValue && this.state.currentValue.options) {
+					var currentValue = this.state.currentValue;
+					this.setState({
+						focusedIndex: null,
+						inputValue: this.handleInputValueChange(updatedValue),
+						isOpen: !this.props.closeOnSelect,
+						currentValue: null
+					}, function () {
+						var _this3$props$valueKey, _this3$replaceValue;
+
+						console.log('currentValue', currentValue);
+						_this3.replaceValue(currentValue, (_this3$replaceValue = {}, defineProperty(_this3$replaceValue, _this3.props.labelKey, currentValue[_this3.props.labelKey] + ': ' + value[_this3.props.labelKey]), defineProperty(_this3$replaceValue, _this3.props.valueKey, (_this3$props$valueKey = {}, defineProperty(_this3$props$valueKey, _this3.props.valueKey, currentValue[_this3.props.valueKey]), defineProperty(_this3$props$valueKey, _this3.props.subfilterKey, value[_this3.props.valueKey]), _this3$props$valueKey)), _this3$replaceValue));
+					});
+				} else {
+					this.setState({
+						focusedIndex: null,
+						inputValue: this.handleInputValueChange(updatedValue),
+						isOpen: value.options && value.options.length > 0 || !this.props.closeOnSelect,
+						currentValue: value
+					}, function () {
+						var valueArray = _this3.getValueArray(_this3.props.value);
+						if (valueArray.some(function (i) {
+							return i[_this3.props.valueKey] === value[_this3.props.valueKey];
+						})) {
+							_this3.removeValue(value);
+						} else {
+							_this3.addValue(value);
+						}
+					});
+				}
+			} else if (this.props.multi) {
 				this.setState({
 					focusedIndex: null,
 					inputValue: this.handleInputValueChange(updatedValue),
@@ -1333,6 +1365,11 @@ var Select$1 = function (_React$Component) {
 			var valueArray = this.getValueArray(this.props.value);
 			if (!valueArray.length) return;
 			if (valueArray[valueArray.length - 1].clearableValue === false) return;
+			if (this.state.currentValue) {
+				this.setState({
+					currentValue: null
+				});
+			}
 			this.setValue(this.props.multi ? valueArray.slice(0, valueArray.length - 1) : null);
 		}
 	}, {
@@ -1345,6 +1382,30 @@ var Select$1 = function (_React$Component) {
 				return i[_this4.props.valueKey] !== value[_this4.props.valueKey];
 			}));
 			this.focus();
+		}
+	}, {
+		key: 'replaceValue',
+		value: function replaceValue(previousValue, newValue) {
+			var _this5 = this;
+
+			console.log('newValue', newValue);
+			var valueArray = this.getValueArray(this.props.value);
+			var visibleOptions = this._visibleOptions.filter(function (val) {
+				return !val.disabled;
+			});
+			var lastValueIndex = visibleOptions.indexOf(previousValue);
+
+			var newValueArray = valueArray.filter(function (i) {
+				return i[_this5.props.valueKey] !== previousValue[_this5.props.valueKey];
+			});
+			this.setValue(newValueArray.concat(newValue));
+			if (visibleOptions.length - 1 === lastValueIndex) {
+				// the last option was selected; focus the second-last one
+				this.focusOption(visibleOptions[lastValueIndex - 1]);
+			} else if (visibleOptions.length > lastValueIndex) {
+				// focus the option below the selected one
+				this.focusOption(visibleOptions[lastValueIndex + 1]);
+			}
 		}
 	}, {
 		key: 'clearValue',
@@ -1503,7 +1564,7 @@ var Select$1 = function (_React$Component) {
 	}, {
 		key: 'renderValue',
 		value: function renderValue(valueArray, isOpen) {
-			var _this5 = this;
+			var _this6 = this;
 
 			var renderLabel = this.props.valueRenderer || this.getOptionLabel;
 			var ValueComponent = this.props.valueComponent;
@@ -1521,13 +1582,13 @@ var Select$1 = function (_React$Component) {
 					return React.createElement(
 						ValueComponent,
 						{
-							disabled: _this5.props.disabled || value.clearableValue === false,
-							id: _this5._instancePrefix + '-value-' + i,
-							instancePrefix: _this5._instancePrefix,
-							key: 'value-' + i + '-' + value[_this5.props.valueKey],
+							disabled: _this6.props.disabled || value.clearableValue === false,
+							id: _this6._instancePrefix + '-value-' + i,
+							instancePrefix: _this6._instancePrefix,
+							key: 'value-' + i + '-' + value[_this6.props.valueKey],
 							onClick: onClick,
-							onRemove: _this5.removeValue,
-							placeholder: _this5.props.placeholder,
+							onRemove: _this6.removeValue,
+							placeholder: _this6.props.placeholder,
 							value: value
 						},
 						renderLabel(value, i),
@@ -1558,7 +1619,7 @@ var Select$1 = function (_React$Component) {
 		key: 'renderInput',
 		value: function renderInput(valueArray, focusedOptionIndex) {
 			var _classNames,
-			    _this6 = this;
+			    _this7 = this;
 
 			var className = classNames('Select-input', this.props.inputProps.className);
 			var isOpen = this.state.isOpen;
@@ -1584,7 +1645,7 @@ var Select$1 = function (_React$Component) {
 				onChange: this.handleInputChange,
 				onFocus: this.handleInputFocus,
 				ref: function ref(_ref) {
-					return _this6.input = _ref;
+					return _this7.input = _ref;
 				},
 				role: 'combobox',
 				required: this.state.required,
@@ -1612,7 +1673,7 @@ var Select$1 = function (_React$Component) {
 					onBlur: this.handleInputBlur,
 					onFocus: this.handleInputFocus,
 					ref: function ref(_ref2) {
-						return _this6.input = _ref2;
+						return _this7.input = _ref2;
 					},
 					role: 'combobox',
 					style: { border: 0, width: 1, display: 'inline-block' },
@@ -1676,9 +1737,43 @@ var Select$1 = function (_React$Component) {
 	}, {
 		key: 'filterOptions',
 		value: function filterOptions$$1(excludeOptions) {
+			var _this8 = this;
+
 			var filterValue = this.state.inputValue;
 			var options = this.props.options || [];
-			if (this.props.filterOptions) {
+
+			var valueArray = this.getValueArray(this.props.value);
+			var subfilters = {};
+			valueArray.forEach(function (value) {
+				if (_typeof(value[_this8.props.valueKey]) === 'object' && value[_this8.props.valueKey] !== null) {
+					var valueKey = value[_this8.props.valueKey][_this8.props.valueKey];
+					var subfilterList = subfilters[valueKey] || [];
+					subfilterList.push(value[_this8.props.valueKey][_this8.props.subfilterKey]);
+					subfilters[valueKey] = subfilterList;
+				}
+			});
+
+			if (this.props.deepFilter) {
+				options = options.filter(function (option) {
+					var optionValue = option[_this8.props.valueKey];
+					return option.options && subfilters[optionValue] ? subfilters[optionValue].length < option.options.length : true;
+				});
+			}
+			if (this.props.deepFilter && this.state.currentValue && this.state.currentValue.options) {
+				var valueKey = this.state.currentValue[this.props.valueKey];
+				var _subfilters = [];
+				valueArray.forEach(function (value) {
+					if (_typeof(value[_this8.props.valueKey]) === 'object' && value[_this8.props.valueKey] !== null) {
+						if (value[_this8.props.valueKey][_this8.props.valueKey] === valueKey) {
+							_subfilters.push(value[_this8.props.valueKey][_this8.props.subfilterKey]);
+						}
+					}
+				});
+
+				return this.state.currentValue.options.filter(function (option) {
+					return _subfilters.indexOf(option[_this8.props.valueKey]) < 0;
+				});
+			} else if (this.props.filterOptions) {
 				// Maintain backwards compatibility with boolean attribute
 				var filterOptions$$1 = typeof this.props.filterOptions === 'function' ? this.props.filterOptions : filterOptions;
 
@@ -1738,18 +1833,18 @@ var Select$1 = function (_React$Component) {
 	}, {
 		key: 'renderHiddenField',
 		value: function renderHiddenField(valueArray) {
-			var _this7 = this;
+			var _this9 = this;
 
 			if (!this.props.name) return;
 			if (this.props.joinValues) {
 				var value = valueArray.map(function (i) {
-					return stringifyValue(i[_this7.props.valueKey]);
+					return stringifyValue(i[_this9.props.valueKey]);
 				}).join(this.props.delimiter);
 				return React.createElement('input', {
 					disabled: this.props.disabled,
 					name: this.props.name,
 					ref: function ref(_ref3) {
-						return _this7.value = _ref3;
+						return _this9.value = _ref3;
 					},
 					type: 'hidden',
 					value: value
@@ -1757,12 +1852,12 @@ var Select$1 = function (_React$Component) {
 			}
 			return valueArray.map(function (item, index) {
 				return React.createElement('input', {
-					disabled: _this7.props.disabled,
+					disabled: _this9.props.disabled,
 					key: 'hidden.' + index,
-					name: _this7.props.name,
+					name: _this9.props.name,
 					ref: 'value' + index,
 					type: 'hidden',
-					value: stringifyValue(item[_this7.props.valueKey])
+					value: stringifyValue(item[_this9.props.valueKey])
 				});
 			});
 		}
@@ -1796,7 +1891,7 @@ var Select$1 = function (_React$Component) {
 	}, {
 		key: 'renderOuter',
 		value: function renderOuter(options, valueArray, focusedOption) {
-			var _this8 = this;
+			var _this10 = this;
 
 			var menu = this.renderMenu(options, valueArray, focusedOption);
 			if (!menu) {
@@ -1806,7 +1901,7 @@ var Select$1 = function (_React$Component) {
 			return React.createElement(
 				'div',
 				{ ref: function ref(_ref5) {
-						return _this8.menuContainer = _ref5;
+						return _this10.menuContainer = _ref5;
 					}, className: 'Select-menu-outer', style: this.props.menuContainerStyle },
 				React.createElement(
 					'div',
@@ -1816,7 +1911,7 @@ var Select$1 = function (_React$Component) {
 						onMouseDown: this.handleMouseDownOnMenu,
 						onScroll: this.handleMenuScroll,
 						ref: function ref(_ref4) {
-							return _this8.menu = _ref4;
+							return _this10.menu = _ref4;
 						},
 						role: 'listbox',
 						style: this.props.menuStyle,
@@ -1829,12 +1924,13 @@ var Select$1 = function (_React$Component) {
 	}, {
 		key: 'render',
 		value: function render() {
-			var _this9 = this;
+			var _this11 = this;
 
 			var valueArray = this.getValueArray(this.props.value);
 			var options = this._visibleOptions = this.filterOptions(this.props.multi && this.props.removeSelected ? valueArray : null);
 			var isOpen = this.state.isOpen;
 			if (this.props.multi && !options.length && valueArray.length && !this.state.inputValue) isOpen = false;
+			if (!isOpen && this.props.deepFilter && this.state.currentValue && this.state.currentValue.options && this.state.currentValue.options.length > 0) isOpen = true;
 			var focusedOptionIndex = this.getFocusableOptionIndex(valueArray[0]);
 
 			var focusedOption = null;
@@ -1869,7 +1965,7 @@ var Select$1 = function (_React$Component) {
 			return React.createElement(
 				'div',
 				{ ref: function ref(_ref7) {
-						return _this9.wrapper = _ref7;
+						return _this11.wrapper = _ref7;
 					},
 					className: className,
 					style: this.props.wrapperStyle },
@@ -1877,7 +1973,7 @@ var Select$1 = function (_React$Component) {
 				React.createElement(
 					'div',
 					{ ref: function ref(_ref6) {
-							return _this9.control = _ref6;
+							return _this11.control = _ref6;
 						},
 						className: 'Select-control',
 						onKeyDown: this.handleKeyDown,
@@ -1922,6 +2018,7 @@ Select$1.propTypes = {
 	clearValueText: stringOrNode, // title for the "clear" control
 	clearable: PropTypes.bool, // should it be possible to reset value
 	closeOnSelect: PropTypes.bool, // whether to close the menu when a value is selected
+	deepFilter: PropTypes.bool, // whether each option can have further options to filter
 	deleteRemoves: PropTypes.bool, // whether delete removes an item if there is no text input
 	delimiter: PropTypes.string, // delimiter to use to join multiple values for the hidden field value
 	disabled: PropTypes.bool, // whether the Select is disabled or not
@@ -1973,7 +2070,8 @@ Select$1.propTypes = {
 	scrollMenuIntoView: PropTypes.bool, // boolean to enable the viewport to shift so that the full menu fully visible when engaged
 	searchable: PropTypes.bool, // whether to enable searching feature or not
 	simpleValue: PropTypes.bool, // pass the value to onChange as a simple value (legacy pre 1.0 mode), defaults to false
-	style: PropTypes.object, // optional style to apply to the control
+	style: PropTypes.object, // optional style to apply to the control,
+	subfilterKey: PropTypes.string,
 	tabIndex: stringOrNumber, // optional tab index of the control
 	tabSelectsValue: PropTypes.bool, // whether to treat tabbing out while focused to be value selection
 	trimFilter: PropTypes.bool, // whether to trim whitespace around filter value
@@ -2024,6 +2122,7 @@ Select$1.defaultProps = {
 	scrollMenuIntoView: true,
 	searchable: true,
 	simpleValue: false,
+	subfilterKey: 'subfilter',
 	tabSelectsValue: true,
 	trimFilter: true,
 	valueComponent: Value,
