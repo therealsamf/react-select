@@ -4,7 +4,7 @@ import PropTypes from 'prop-types';
 import Select from 'react-select';
 
 const FLAVOURS = [
-	{ label: 'Chocolate', value: 'chocolate' },
+	{ label: 'Chocolate', value: 'chocolate', options: [ { label: 'Rocky Road', value: 'rocky-road' }, { label: 'Dark', value: 'dark' }] },
 	{ label: 'Vanilla', value: 'vanilla' },
 	{ label: 'Strawberry', value: 'strawberry' },
 	{ label: 'Caramel', value: 'caramel' },
@@ -55,12 +55,12 @@ var MultiSelectField = createClass({
 					closeOnSelect={!stayOpen}
 					disabled={disabled}
 					multi
+					deepFilter
 					onChange={this.handleSelectChange}
 					options={options}
 					placeholder="Select your favourite(s)"
           removeSelected={this.state.removeSelected}
 					rtl={this.state.rtl}
-					simpleValue
 					value={value}
 				/>
 
