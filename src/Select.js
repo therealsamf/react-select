@@ -617,14 +617,56 @@ class Select extends React.Component {
 			this.hasScrolledToOption = false;
 		}
 		const updatedValue = this.props.onSelectResetsInput ? '' : this.state.inputValue;
-		if (this.props.multi) {
+
+		if (this.props.multi && this.props.deepFilter) {
+			if (this.state.currentValue && this.state.currentValue.options) {
+				const currentValue = this.state.currentValue;
+				this.setState({
+					focusedIndex: null,
+					inputValue: this.handleInputValueChange(updatedValue),
+					isOpen: !this.props.closeOnSelect,
+					currentValue: null,
+				}, () => {
+					console.log('currentValue', currentValue);
+					this.replaceValue(currentValue, {
+						[this.props.labelKey]: `${currentValue[this.props.labelKey]}: ${value[this.props.labelKey]}`,
+						[this.props.valueKey]: {
+							[this.props.valueKey]: currentValue[this.props.valueKey],
+							[this.props.subfilterKey]: value[this.props.valueKey],
+						}
+					});
+				});
+			}
+			else {
+				this.setState({
+					focusedIndex: null,
+					inputValue: this.handleInputValueChange(updatedValue),
+					isOpen: (value.options && value.options.length > 0) || !this.props.closeOnSelect,
+					currentValue: value,
+					}, () => {
+						const valueArray = this.getValueArray(this.props.value);
+						if (valueArray.some((i) => {
+							return i[this.props.valueKey] === value[this.props.valueKey];
+						})) {
+							this.removeValue(value);
+						} else {
+							this.addValue(value);
+						}
+					}
+				);
+			} 
+		}
+
+		else if (this.props.multi) {
 			this.setState({
 				focusedIndex: null,
 				inputValue: this.handleInputValueChange(updatedValue),
 				isOpen: !this.props.closeOnSelect,
 			}, () => {
 				const valueArray = this.getValueArray(this.props.value);
-				if (valueArray.some(i => i[this.props.valueKey] === value[this.props.valueKey])) {
+				if (valueArray.some((i) => {
+					return i[this.props.valueKey] === value[this.props.valueKey];
+				})) {
 					this.removeValue(value);
 				} else {
 					this.addValue(value);
@@ -659,6 +701,11 @@ class Select extends React.Component {
 		let valueArray = this.getValueArray(this.props.value);
 		if (!valueArray.length) return;
 		if (valueArray[valueArray.length-1].clearableValue === false) return;
+		if (this.state.currentValue) {
+			this.setState({
+				currentValue: null,
+			});
+		}
 		this.setValue(this.props.multi ? valueArray.slice(0, valueArray.length - 1) : null);
 	}
 
@@ -666,6 +713,23 @@ class Select extends React.Component {
 		let valueArray = this.getValueArray(this.props.value);
 		this.setValue(valueArray.filter(i => i[this.props.valueKey] !== value[this.props.valueKey]));
 		this.focus();
+	}
+
+	replaceValue (previousValue, newValue) {
+		console.log('newValue', newValue);
+		let valueArray = this.getValueArray(this.props.value);
+		const visibleOptions = this._visibleOptions.filter(val => !val.disabled);
+		const lastValueIndex = visibleOptions.indexOf(previousValue);
+
+		const newValueArray = valueArray.filter(i => i[this.props.valueKey] !== previousValue[this.props.valueKey]);
+		this.setValue(newValueArray.concat(newValue));
+		if (visibleOptions.length - 1 === lastValueIndex) {
+			// the last option was selected; focus the second-last one
+			this.focusOption(visibleOptions[lastValueIndex - 1]);
+		} else if (visibleOptions.length > lastValueIndex) {
+			// focus the option below the selected one
+			this.focusOption(visibleOptions[lastValueIndex + 1]);
+		}
 	}
 
 	clearValue (event) {
@@ -978,8 +1042,39 @@ class Select extends React.Component {
 
 	filterOptions (excludeOptions) {
 		const filterValue = this.state.inputValue;
-		const options = this.props.options || [];
-		if (this.props.filterOptions) {
+		let options = this.props.options || [];
+		
+		const valueArray = this.getValueArray(this.props.value);
+		const subfilters = {};
+		valueArray.forEach((value) => {
+			if (typeof value[this.props.valueKey] === 'object' && value[this.props.valueKey] !== null) {
+				const valueKey = value[this.props.valueKey][this.props.valueKey];
+				const subfilterList = subfilters[valueKey] || [];
+				subfilterList.push(value[this.props.valueKey][this.props.subfilterKey]);
+				subfilters[valueKey] = subfilterList;
+			}
+		});
+
+		if (this.props.deepFilter) {
+			options = options.filter((option) => {
+				const optionValue = option[this.props.valueKey];
+				return option.options && subfilters[optionValue] ? subfilters[optionValue].length < option.options.length : true;
+			});
+		}
+		if (this.props.deepFilter && this.state.currentValue && this.state.currentValue.options) {
+			const valueKey = this.state.currentValue[this.props.valueKey];
+			const subfilters = [];
+			valueArray.forEach((value) => {
+				if (typeof value[this.props.valueKey] === 'object' && value[this.props.valueKey] !== null) {
+					if (value[this.props.valueKey][this.props.valueKey] === valueKey) {
+						subfilters.push(value[this.props.valueKey][this.props.subfilterKey]);
+					}
+				}
+			});
+
+			return this.state.currentValue.options.filter((option) => subfilters.indexOf(option[this.props.valueKey]) < 0);
+		}
+		else if (this.props.filterOptions) {
 			// Maintain backwards compatibility with boolean attribute
 			const filterOptions = typeof this.props.filterOptions === 'function'
 				? this.props.filterOptions
@@ -1123,6 +1218,13 @@ class Select extends React.Component {
 		let options = this._visibleOptions = this.filterOptions(this.props.multi && this.props.removeSelected ? valueArray : null);
 		let isOpen = this.state.isOpen;
 		if (this.props.multi && !options.length && valueArray.length && !this.state.inputValue) isOpen = false;
+		if (
+			!isOpen &&
+			this.props.deepFilter && 
+			this.state.currentValue &&
+			this.state.currentValue.options &&
+			this.state.currentValue.options.length > 0
+		) isOpen = true;
 		const focusedOptionIndex = this.getFocusableOptionIndex(valueArray[0]);
 
 		let focusedOption = null;
@@ -1205,6 +1307,7 @@ Select.propTypes = {
 	clearValueText: stringOrNode,         // title for the "clear" control
 	clearable: PropTypes.bool,            // should it be possible to reset value
 	closeOnSelect: PropTypes.bool,        // whether to close the menu when a value is selected
+	deepFilter: PropTypes.bool,           // whether each option can have further options to filter
 	deleteRemoves: PropTypes.bool,        // whether delete removes an item if there is no text input
 	delimiter: PropTypes.string,          // delimiter to use to join multiple values for the hidden field value
 	disabled: PropTypes.bool,             // whether the Select is disabled or not
@@ -1256,7 +1359,8 @@ Select.propTypes = {
 	scrollMenuIntoView: PropTypes.bool,   // boolean to enable the viewport to shift so that the full menu fully visible when engaged
 	searchable: PropTypes.bool,           // whether to enable searching feature or not
 	simpleValue: PropTypes.bool,          // pass the value to onChange as a simple value (legacy pre 1.0 mode), defaults to false
-	style: PropTypes.object,              // optional style to apply to the control
+	style: PropTypes.object,              // optional style to apply to the control,
+	subfilterKey: PropTypes.string,
 	tabIndex: stringOrNumber,             // optional tab index of the control
 	tabSelectsValue: PropTypes.bool,      // whether to treat tabbing out while focused to be value selection
 	trimFilter: PropTypes.bool,           // whether to trim whitespace around filter value
@@ -1307,6 +1411,7 @@ Select.defaultProps = {
 	scrollMenuIntoView: true,
 	searchable: true,
 	simpleValue: false,
+	subfilterKey: 'subfilter',
 	tabSelectsValue: true,
  	trimFilter: true,
 	valueComponent: Value,
