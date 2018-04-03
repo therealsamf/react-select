@@ -627,13 +627,23 @@ class Select extends React.Component {
 					isOpen: !this.props.closeOnSelect,
 					currentValue: null,
 				}, () => {
-					console.log('currentValue', currentValue);
+
+					const filteredCurrentValue = {};
+					Object.keys(currentValue).forEach((key) => {
+						if (key === 'value' || key === 'options' || key === 'label') return;
+						filteredCurrentValue[key] = currentValue[key];
+					});
+
 					this.replaceValue(currentValue, {
 						[this.props.labelKey]: `${currentValue[this.props.labelKey]}: ${value[this.props.labelKey]}`,
-						[this.props.valueKey]: {
-							[this.props.valueKey]: currentValue[this.props.valueKey],
-							[this.props.subfilterKey]: value[this.props.valueKey],
-						}
+						[this.props.valueKey]: Object.assign(
+							{},
+							filteredCurrentValue,
+							{
+								[this.props.valueKey]: currentValue[this.props.valueKey],
+								[this.props.subfilterKey]: value[this.props.valueKey],
+							},
+						),
 					});
 				});
 			}
@@ -716,7 +726,6 @@ class Select extends React.Component {
 	}
 
 	replaceValue (previousValue, newValue) {
-		console.log('newValue', newValue);
 		let valueArray = this.getValueArray(this.props.value);
 		const visibleOptions = this._visibleOptions.filter(val => !val.disabled);
 		const lastValueIndex = visibleOptions.indexOf(previousValue);
@@ -1072,7 +1081,25 @@ class Select extends React.Component {
 				}
 			});
 
-			return this.state.currentValue.options.filter((option) => subfilters.indexOf(option[this.props.valueKey]) < 0);
+			// Maintain backwards compatibility with boolean attribute
+			const filterOptions = typeof this.props.filterOptions === 'function'
+				? this.props.filterOptions
+				: defaultFilterOptions;
+			return filterOptions(
+				this.state.currentValue.options.filter((option) => subfilters.indexOf(option[this.props.valueKey]) < 0),
+				filterValue,
+				excludeOptions,
+				{
+					filterOption: this.props.filterOption,
+					ignoreAccents: this.props.ignoreAccents,
+					ignoreCase: this.props.ignoreCase,
+					labelKey: this.props.labelKey,
+					matchPos: this.props.matchPos,
+					matchProp: this.props.matchProp,
+					trimFilter: this.props.trimFilter,
+					valueKey: this.props.valueKey,
+				}
+			);
 		}
 		else if (this.props.filterOptions) {
 			// Maintain backwards compatibility with boolean attribute
