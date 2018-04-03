@@ -1295,10 +1295,15 @@ var Select$1 = function (_React$Component) {
 						isOpen: !this.props.closeOnSelect,
 						currentValue: null
 					}, function () {
-						var _this3$props$valueKey, _this3$replaceValue;
+						var _Object$assign, _this3$replaceValue;
 
-						console.log('currentValue', currentValue);
-						_this3.replaceValue(currentValue, (_this3$replaceValue = {}, defineProperty(_this3$replaceValue, _this3.props.labelKey, currentValue[_this3.props.labelKey] + ': ' + value[_this3.props.labelKey]), defineProperty(_this3$replaceValue, _this3.props.valueKey, (_this3$props$valueKey = {}, defineProperty(_this3$props$valueKey, _this3.props.valueKey, currentValue[_this3.props.valueKey]), defineProperty(_this3$props$valueKey, _this3.props.subfilterKey, value[_this3.props.valueKey]), _this3$props$valueKey)), _this3$replaceValue));
+						var filteredCurrentValue = {};
+						Object.keys(currentValue).forEach(function (key) {
+							if (key === 'value' || key === 'options' || key === 'label') return;
+							filteredCurrentValue[key] = currentValue[key];
+						});
+
+						_this3.replaceValue(currentValue, (_this3$replaceValue = {}, defineProperty(_this3$replaceValue, _this3.props.labelKey, currentValue[_this3.props.labelKey] + ': ' + value[_this3.props.labelKey]), defineProperty(_this3$replaceValue, _this3.props.valueKey, Object.assign({}, filteredCurrentValue, (_Object$assign = {}, defineProperty(_Object$assign, _this3.props.valueKey, currentValue[_this3.props.valueKey]), defineProperty(_Object$assign, _this3.props.subfilterKey, value[_this3.props.valueKey]), _Object$assign))), _this3$replaceValue));
 					});
 				} else {
 					this.setState({
@@ -1388,7 +1393,6 @@ var Select$1 = function (_React$Component) {
 		value: function replaceValue(previousValue, newValue) {
 			var _this5 = this;
 
-			console.log('newValue', newValue);
 			var valueArray = this.getValueArray(this.props.value);
 			var visibleOptions = this._visibleOptions.filter(function (val) {
 				return !val.disabled;
@@ -1770,14 +1774,25 @@ var Select$1 = function (_React$Component) {
 					}
 				});
 
-				return this.state.currentValue.options.filter(function (option) {
+				// Maintain backwards compatibility with boolean attribute
+				var filterOptions$$1 = typeof this.props.filterOptions === 'function' ? this.props.filterOptions : filterOptions;
+				return filterOptions$$1(this.state.currentValue.options.filter(function (option) {
 					return _subfilters.indexOf(option[_this8.props.valueKey]) < 0;
+				}), filterValue, excludeOptions, {
+					filterOption: this.props.filterOption,
+					ignoreAccents: this.props.ignoreAccents,
+					ignoreCase: this.props.ignoreCase,
+					labelKey: this.props.labelKey,
+					matchPos: this.props.matchPos,
+					matchProp: this.props.matchProp,
+					trimFilter: this.props.trimFilter,
+					valueKey: this.props.valueKey
 				});
 			} else if (this.props.filterOptions) {
 				// Maintain backwards compatibility with boolean attribute
-				var filterOptions$$1 = typeof this.props.filterOptions === 'function' ? this.props.filterOptions : filterOptions;
+				var _filterOptions = typeof this.props.filterOptions === 'function' ? this.props.filterOptions : filterOptions;
 
-				return filterOptions$$1(options, filterValue, excludeOptions, {
+				return _filterOptions(options, filterValue, excludeOptions, {
 					filterOption: this.props.filterOption,
 					ignoreAccents: this.props.ignoreAccents,
 					ignoreCase: this.props.ignoreCase,
