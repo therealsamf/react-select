@@ -57,11 +57,13 @@ export default class Async extends Component {
 
 		this.state = {
 			inputValue: '',
+			currentValue: null,
 			isLoading: false,
 			options: props.options,
 		};
 
 		this.onInputChange = this.onInputChange.bind(this);
+		this.onCurrentValueChange = this.onCurrentValueChange.bind(this);
 	}
 
 	componentDidMount () {
@@ -84,7 +86,7 @@ export default class Async extends Component {
 		this._callback = null;
 	}
 
-	loadOptions (inputValue) {
+	loadOptions (inputValue, currentValue = null) {
 		const { loadOptions } = this.props;
 		const cache = this._cache;
 
@@ -122,7 +124,13 @@ export default class Async extends Component {
 		// Ignore all but the most recent request
 		this._callback = callback;
 
-		const promise = loadOptions(inputValue, callback);
+		let promise;
+		if (this.props.deepFilter && currentValue) {
+			promise = loadOptions(inputValue, currentValue, callback);
+		}
+		else {
+			promise = loadOptions(inputValue, callback);
+		}
 		if (promise) {
 			promise.then(
 				(data) => callback(null, data),
@@ -169,6 +177,13 @@ export default class Async extends Component {
 		return newInputValue;
 	}
 
+	onCurrentValueChange(currentValue) {
+		this.setState({
+			currentValue: currentValue,
+		});
+		this.loadOptions(null, currentValue);
+	}
+
 	noResultsText() {
 		const { loadingPlaceholder, noResultsText, searchPromptText } = this.props;
 		const { inputValue, isLoading } = this.state;
@@ -189,7 +204,6 @@ export default class Async extends Component {
 	render () {
 		const { children, loadingPlaceholder, placeholder } = this.props;
 		const { isLoading, options } = this.state;
-
 		const props = {
 			noResultsText: this.noResultsText(),
 			placeholder: isLoading ? loadingPlaceholder : placeholder,
@@ -201,7 +215,8 @@ export default class Async extends Component {
 			...this.props,
 			...props,
 			isLoading,
-			onInputChange: this.onInputChange
+			onInputChange: this.onInputChange,
+			onCurrentValueChange: this.onCurrentValueChange,
 		});
 	}
 }

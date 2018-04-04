@@ -373,11 +373,13 @@ class Select extends React.Component {
 				inputValue: this.handleInputValueChange(''),
 				isOpen: false,
 				isPseudoFocused: this.state.isFocused && !this.props.multi,
+				currentValue: null,
 			});
 		} else {
 			this.setState({
 				isOpen: false,
-				isPseudoFocused: this.state.isFocused && !this.props.multi
+				isPseudoFocused: this.state.isFocused && !this.props.multi,
+				currentValue: null,
 			});
 		}
 		this.hasScrolledToOption = false;
@@ -409,6 +411,10 @@ class Select extends React.Component {
 			return;
 		}
 
+		if (this.state.currentValue !== null) {
+			this.removeValue(this.state.currentValue);
+		}
+
 		if (this.props.onBlur) {
 			this.props.onBlur(event);
 		}
@@ -416,6 +422,7 @@ class Select extends React.Component {
 			isFocused: false,
 			isOpen: false,
 			isPseudoFocused: false,
+			currentValue: null,
 		};
 		if (this.props.onBlurResetsInput) {
 			onBlurredState.inputValue = this.handleInputValueChange('');
@@ -430,10 +437,15 @@ class Select extends React.Component {
 			newInputValue = this.handleInputValueChange(newInputValue);
 		}
 
+		if (this.state.currentValue !== null) {
+			this.removeValue(this.state.currentValue);
+		}
+
 		this.setState({
 			inputValue: newInputValue,
 			isOpen: true,
 			isPseudoFocused: false,
+			currentValue: null,
 		});
 	}
 
@@ -621,6 +633,11 @@ class Select extends React.Component {
 		if (this.props.multi && this.props.deepFilter) {
 			if (this.state.currentValue && this.state.currentValue.options) {
 				const currentValue = this.state.currentValue;
+
+				if (this.props.onCurrentValueChange) {
+					this.props.onCurrentValueChange(null);
+				}
+
 				this.setState({
 					focusedIndex: null,
 					inputValue: this.handleInputValueChange(updatedValue),
@@ -664,6 +681,9 @@ class Select extends React.Component {
 						}
 					}
 				);
+				if (this.props.onCurrentValueChange) {
+					this.props.onCurrentValueChange(value);
+				}
 			} 
 		}
 
@@ -1052,7 +1072,7 @@ class Select extends React.Component {
 	filterOptions (excludeOptions) {
 		const filterValue = this.state.inputValue;
 		let options = this.props.options || [];
-		
+
 		const valueArray = this.getValueArray(this.props.value);
 		const subfilters = {};
 		valueArray.forEach((value) => {
@@ -1070,9 +1090,17 @@ class Select extends React.Component {
 				return option.options && subfilters[optionValue] ? subfilters[optionValue].length < option.options.length : true;
 			});
 		}
-		if (this.props.deepFilter && this.state.currentValue && this.state.currentValue.options) {
+
+		if (this.props.deepFilter && this.state.currentValue) {
 			const valueKey = this.state.currentValue[this.props.valueKey];
 			const subfilters = [];
+			let currentValueOptions = [];
+			if (this.state.currentValue.options && this.state.currentValue.options.length) currentValueOptions = this.state.currentValue.options;
+			else {
+				const updatedCurrentValue = options.find(option => option[this.props.valueKey] === this.state.currentValue[this.props.valueKey]);
+				if (updatedCurrentValue) currentValueOptions = updatedCurrentValue.options;
+			}
+
 			valueArray.forEach((value) => {
 				if (typeof value[this.props.valueKey] === 'object' && value[this.props.valueKey] !== null) {
 					if (value[this.props.valueKey][this.props.valueKey] === valueKey) {
@@ -1081,12 +1109,13 @@ class Select extends React.Component {
 				}
 			});
 
+			const finalOptions = currentValueOptions.filter((option) => subfilters.indexOf(option[this.props.valueKey]) < 0);
 			// Maintain backwards compatibility with boolean attribute
 			const filterOptions = typeof this.props.filterOptions === 'function'
 				? this.props.filterOptions
 				: defaultFilterOptions;
 			return filterOptions(
-				this.state.currentValue.options.filter((option) => subfilters.indexOf(option[this.props.valueKey]) < 0),
+				finalOptions,
 				filterValue,
 				excludeOptions,
 				{
@@ -1249,8 +1278,8 @@ class Select extends React.Component {
 			!isOpen &&
 			this.props.deepFilter && 
 			this.state.currentValue &&
-			this.state.currentValue.options &&
-			this.state.currentValue.options.length > 0
+			options &&
+			options.length > 0
 		) isOpen = true;
 		const focusedOptionIndex = this.getFocusableOptionIndex(valueArray[0]);
 
