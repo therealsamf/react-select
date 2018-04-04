@@ -1047,7 +1047,7 @@ var Select$1 = function (_React$Component) {
 				return;
 			}
 
-			if (this.state.currentValue !== null) {
+			if (this.state.currentValue !== null && this.state.currentValue !== undefined) {
 				this.removeValue(this.state.currentValue);
 			}
 
@@ -1450,7 +1450,8 @@ var Select$1 = function (_React$Component) {
 			this.setValue(this.getResetValue());
 			this.setState({
 				inputValue: this.handleInputValueChange(''),
-				isOpen: false
+				isOpen: false,
+				currentValue: null
 			}, this.focus);
 
 			this._focusAfterClear = true;
