@@ -1001,12 +1001,14 @@ var Select$1 = function (_React$Component) {
 				this.setState({
 					inputValue: this.handleInputValueChange(''),
 					isOpen: false,
-					isPseudoFocused: this.state.isFocused && !this.props.multi
+					isPseudoFocused: this.state.isFocused && !this.props.multi,
+					currentValue: null
 				});
 			} else {
 				this.setState({
 					isOpen: false,
-					isPseudoFocused: this.state.isFocused && !this.props.multi
+					isPseudoFocused: this.state.isFocused && !this.props.multi,
+					currentValue: null
 				});
 			}
 			this.hasScrolledToOption = false;
@@ -1040,13 +1042,18 @@ var Select$1 = function (_React$Component) {
 				return;
 			}
 
+			if (this.state.currentValue !== null) {
+				this.removeValue(this.state.currentValue);
+			}
+
 			if (this.props.onBlur) {
 				this.props.onBlur(event);
 			}
 			var onBlurredState = {
 				isFocused: false,
 				isOpen: false,
-				isPseudoFocused: false
+				isPseudoFocused: false,
+				currentValue: null
 			};
 			if (this.props.onBlurResetsInput) {
 				onBlurredState.inputValue = this.handleInputValueChange('');
@@ -1062,10 +1069,15 @@ var Select$1 = function (_React$Component) {
 				newInputValue = this.handleInputValueChange(newInputValue);
 			}
 
+			if (this.state.currentValue !== null) {
+				this.removeValue(this.state.currentValue);
+			}
+
 			this.setState({
 				inputValue: newInputValue,
 				isOpen: true,
-				isPseudoFocused: false
+				isPseudoFocused: false,
+				currentValue: null
 			});
 		}
 	}, {
@@ -1289,6 +1301,11 @@ var Select$1 = function (_React$Component) {
 			if (this.props.multi && this.props.deepFilter) {
 				if (this.state.currentValue && this.state.currentValue.options) {
 					var currentValue = this.state.currentValue;
+
+					if (this.props.onCurrentValueChange) {
+						this.props.onCurrentValueChange(null);
+					}
+
 					this.setState({
 						focusedIndex: null,
 						inputValue: this.handleInputValueChange(updatedValue),
@@ -1321,6 +1338,9 @@ var Select$1 = function (_React$Component) {
 							_this3.addValue(value);
 						}
 					});
+					if (this.props.onCurrentValueChange) {
+						this.props.onCurrentValueChange(value);
+					}
 				}
 			} else if (this.props.multi) {
 				this.setState({
@@ -1763,9 +1783,18 @@ var Select$1 = function (_React$Component) {
 					return option.options && subfilters[optionValue] ? subfilters[optionValue].length < option.options.length : true;
 				});
 			}
-			if (this.props.deepFilter && this.state.currentValue && this.state.currentValue.options) {
+
+			if (this.props.deepFilter && this.state.currentValue) {
 				var valueKey = this.state.currentValue[this.props.valueKey];
 				var _subfilters = [];
+				var currentValueOptions = [];
+				if (this.state.currentValue.options && this.state.currentValue.options.length) currentValueOptions = this.state.currentValue.options;else {
+					var updatedCurrentValue = options.find(function (option) {
+						return option[_this8.props.valueKey] === _this8.state.currentValue[_this8.props.valueKey];
+					});
+					if (updatedCurrentValue) currentValueOptions = updatedCurrentValue.options;
+				}
+
 				valueArray.forEach(function (value) {
 					if (_typeof(value[_this8.props.valueKey]) === 'object' && value[_this8.props.valueKey] !== null) {
 						if (value[_this8.props.valueKey][_this8.props.valueKey] === valueKey) {
@@ -1774,11 +1803,12 @@ var Select$1 = function (_React$Component) {
 					}
 				});
 
+				var finalOptions = currentValueOptions.filter(function (option) {
+					return _subfilters.indexOf(option[_this8.props.valueKey]) < 0;
+				});
 				// Maintain backwards compatibility with boolean attribute
 				var filterOptions$$1 = typeof this.props.filterOptions === 'function' ? this.props.filterOptions : filterOptions;
-				return filterOptions$$1(this.state.currentValue.options.filter(function (option) {
-					return _subfilters.indexOf(option[_this8.props.valueKey]) < 0;
-				}), filterValue, excludeOptions, {
+				return filterOptions$$1(finalOptions, filterValue, excludeOptions, {
 					filterOption: this.props.filterOption,
 					ignoreAccents: this.props.ignoreAccents,
 					ignoreCase: this.props.ignoreCase,
@@ -1945,7 +1975,7 @@ var Select$1 = function (_React$Component) {
 			var options = this._visibleOptions = this.filterOptions(this.props.multi && this.props.removeSelected ? valueArray : null);
 			var isOpen = this.state.isOpen;
 			if (this.props.multi && !options.length && valueArray.length && !this.state.inputValue) isOpen = false;
-			if (!isOpen && this.props.deepFilter && this.state.currentValue && this.state.currentValue.options && this.state.currentValue.options.length > 0) isOpen = true;
+			if (!isOpen && this.props.deepFilter && this.state.currentValue && options && options.length > 0) isOpen = true;
 			var focusedOptionIndex = this.getFocusableOptionIndex(valueArray[0]);
 
 			var focusedOption = null;
@@ -2195,11 +2225,13 @@ var Async = function (_Component) {
 
 		_this.state = {
 			inputValue: '',
+			currentValue: null,
 			isLoading: false,
 			options: props.options
 		};
 
 		_this.onInputChange = _this.onInputChange.bind(_this);
+		_this.onCurrentValueChange = _this.onCurrentValueChange.bind(_this);
 		return _this;
 	}
 
@@ -2232,6 +2264,7 @@ var Async = function (_Component) {
 		value: function loadOptions(inputValue) {
 			var _this2 = this;
 
+			var currentValue = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
 			var loadOptions = this.props.loadOptions;
 
 			var cache = this._cache;
@@ -2267,7 +2300,12 @@ var Async = function (_Component) {
 			// Ignore all but the most recent request
 			this._callback = callback;
 
-			var promise = loadOptions(inputValue, callback);
+			var promise = void 0;
+			if (this.props.deepFilter && currentValue) {
+				promise = loadOptions(inputValue, currentValue, callback);
+			} else {
+				promise = loadOptions(inputValue, callback);
+			}
 			if (promise) {
 				promise.then(function (data) {
 					return callback(null, data);
@@ -2317,6 +2355,14 @@ var Async = function (_Component) {
 			return newInputValue;
 		}
 	}, {
+		key: 'onCurrentValueChange',
+		value: function onCurrentValueChange(currentValue) {
+			this.setState({
+				currentValue: currentValue
+			});
+			this.loadOptions(null, currentValue);
+		}
+	}, {
 		key: 'noResultsText',
 		value: function noResultsText() {
 			var _props2 = this.props,
@@ -2354,7 +2400,6 @@ var Async = function (_Component) {
 			    isLoading = _state2.isLoading,
 			    options = _state2.options;
 
-
 			var props = {
 				noResultsText: this.noResultsText(),
 				placeholder: isLoading ? loadingPlaceholder : placeholder,
@@ -2366,7 +2411,8 @@ var Async = function (_Component) {
 
 			return children(_extends({}, this.props, props, {
 				isLoading: isLoading,
-				onInputChange: this.onInputChange
+				onInputChange: this.onInputChange,
+				onCurrentValueChange: this.onCurrentValueChange
 			}));
 		}
 	}]);
