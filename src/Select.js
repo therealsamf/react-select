@@ -411,7 +411,7 @@ class Select extends React.Component {
 			return;
 		}
 
-		if (this.state.currentValue !== null) {
+		if (this.state.currentValue !== null && this.state.currentValue !== undefined) {
 			this.removeValue(this.state.currentValue);
 		}
 
@@ -774,6 +774,7 @@ class Select extends React.Component {
 		this.setState({
 			inputValue: this.handleInputValueChange(''),
 			isOpen: false,
+			currentValue: null,
 		}, this.focus);
 
 		this._focusAfterClear = true;
